@@ -1,0 +1,11 @@
+{
+	"id": "fox-dashboard",
+	"name": "狐の工作台",
+	"version": "0.1.0",
+	"minAppVersion": "1.5.0",
+	"description": "个人操作系统首页 — 森林探索者 ☀️ / 独狼观测站 🌙",
+	"author": "小狐",
+	"authorUrl": "",
+	"fundingUrl": "",
+	"isDesktopOnly": false
+}

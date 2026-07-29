@@ -1,0 +1,16 @@
+"" 
+node_modules/
+dist/
+build/
+*.log
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+# 屏蔽Windows保留设备名，防止再次出错
+nul
+con
+aux
+prn
+com[1-9]
+lpt[1-9]
