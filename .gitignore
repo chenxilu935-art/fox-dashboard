@@ -1,16 +1,29 @@
-"" 
+# 依赖
 node_modules/
+
+# 构建产物
 dist/
 build/
+
+# 日志
 *.log
+
+# 系统文件
 .DS_Store
 Thumbs.db
 *.tmp
+
+# Obsidian 用户数据（每个用户不同）
+data.json
+
+# 备份文件
 *.bak
-# 屏蔽Windows保留设备名，防止再次出错
+*.backup
+
+# Windows 保留设备名
 nul
 con
 aux
 prn
-com[1-9]
 lpt[1-9]
+com[1-9]

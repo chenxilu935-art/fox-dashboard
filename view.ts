@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, TFile } from 'obsidian';
+import { ItemView, WorkspaceLeaf, TFile, Modal, Notice, App } from 'obsidian';
 import FoxDashboardPlugin from './main';
 
 export const VIEW_TYPE_FOX = 'fox-dashboard';
@@ -220,6 +220,10 @@ export class FoxDashboardView extends ItemView {
 		else this.app.workspace.openLinkText(path, '/', false);
 	}
 
+	private openKnowledgeCreator() {
+		new KnowledgeModal(this.app, this.plugin).open();
+	}
+
 	private toggleTheme() {
 		this.plugin.settings.theme = this.plugin.settings.theme === 'night' ? 'day' : 'night';
 		this.plugin.saveSettings();
@@ -286,7 +290,7 @@ export class FoxDashboardView extends ItemView {
 	private createQuickNav(): HTMLElement {
 		const nav = createDiv({ cls: 'fox-quick-nav' });
 		const items = [
-			{ icon: '探索者罗盘.png', title: '知识森林', desc: '知识库', path: '20-Notes/' },
+			{ icon: '探索者罗盘.png', title: '知识森林', desc: '知识库', path: null, isKnowledge: true },
 			{ icon: '雪山山峰.png', title: '学习专区', desc: '英语/GRE/CFA', path: '30-Learning/' },
 			{ icon: '沉睡狐狸.png', title: '日志系统', desc: '日记/复盘', path: '10-Daily/' },
 			{ icon: '狼爪印石碑.png', title: '工作管理', desc: '项目/任务', path: '40-Work/' },
@@ -295,7 +299,12 @@ export class FoxDashboardView extends ItemView {
 		];
 		for (const item of items) {
 			const btn = nav.createEl('a', { cls: 'fox-nav-btn', href: '#' });
-			btn.onclick = (e) => { e.preventDefault(); if (item.isDiary) this.openTodayDiary(); else if (item.path) this.openFolder(item.path); };
+			btn.onclick = (e) => {
+				e.preventDefault();
+				if (item.isDiary) this.openTodayDiary();
+				else if (item.isKnowledge) this.openKnowledgeCreator();
+				else if (item.path) this.openFolder(item.path);
+			};
 			btn.createEl('img', { attr: { src: this.getAssetPath(`assets/icons/${item.icon}`) }  });
 			const td = btn.createDiv();
 			td.createSpan({ cls: 'fox-nav-btn-title', text: item.title });
@@ -1704,5 +1713,141 @@ export class FoxDashboardView extends ItemView {
 
 	private escapeHtml(s: string): string {
 		return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+	}
+}
+
+
+/* ═══════════════════════════════════════════════
+   KNOWLEDGE MODAL
+   ═══════════════════════════════════════════════ */
+
+interface TemplateOption {
+	id: string;
+	label: string;
+	templateFile: string | null; // null = 内联, path = 读取文件
+	getContent: (title: string, date: string) => string;
+}
+
+const TEMPLATES: TemplateOption[] = [
+		{ id: 'concept',           label: '📘 概念',       templateFile: '模板/概念笔记模板.md',       getContent: () => '' },
+		{ id: 'tutorial',          label: '📗 教程',       templateFile: '模板/教程笔记模板.md',       getContent: () => '' },
+		{ id: 'methodology',       label: '📙 方法论',     templateFile: '模板/方法论笔记模板.md',     getContent: () => '' },
+		{ id: 'tool',              label: '🔧 工具',       templateFile: '模板/工具笔记模板.md',       getContent: () => '' },
+		{ id: 'thinking',          label: '💡 思考',       templateFile: '模板/思考笔记模板.md',       getContent: () => '' },
+		{ id: 'research-concept',  label: '🔬 科研概念笔记', templateFile: '模板/科研概念笔记模板.md', getContent: () => '' },
+		{ id: 'lit-note',          label: '📄 文献笔记',   templateFile: '模板/文献笔记模板.md',       getContent: () => '' },
+	];
+
+class KnowledgeModal extends Modal {
+	plugin: FoxDashboardPlugin;
+	titleInput: HTMLInputElement;
+	selectedId: string;
+	createBtn: HTMLButtonElement;
+
+	constructor(app: App, plugin: FoxDashboardPlugin) {
+		super(app);
+		this.plugin = plugin;
+		this.selectedId = 'concept';
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.addClass('fox-knowledge-modal');
+		contentEl.empty();
+
+		contentEl.createEl('h2', { text: '📚 新建知识卡片' });
+
+		// Title input
+		this.titleInput = contentEl.createEl('input', {
+			type: 'text',
+			attr: { placeholder: '知识卡片名称…', autofocus: '' },
+		});
+		this.titleInput.addClass('fox-knowledge-input');
+
+		// Template list
+		const list = contentEl.createDiv({ cls: 'fox-knowledge-tpl-list' });
+		for (const tpl of TEMPLATES) {
+			const btn = list.createEl('button', { cls: 'fox-knowledge-tpl-btn', text: tpl.label });
+			if (tpl.id === this.selectedId) btn.addClass('active');
+			btn.onclick = () => {
+				list.querySelectorAll('.fox-knowledge-tpl-btn').forEach((b) => b.removeClass('active'));
+				btn.addClass('active');
+				this.selectedId = tpl.id;
+			};
+		}
+
+		// Buttons
+		const btnRow = contentEl.createDiv({ cls: 'fox-knowledge-actions' });
+		const cancelBtn = btnRow.createEl('button', { cls: 'fox-record-btn', text: '取消' });
+		cancelBtn.onclick = () => this.close();
+
+		this.createBtn = btnRow.createEl('button', {
+			cls: 'fox-record-btn',
+			text: '🌱 创建',
+			attr: { style: 'background: var(--fox-accent); color: #fff;' },
+		});
+		this.createBtn.onclick = () => this.doCreate();
+
+		// Enter to submit
+		this.titleInput.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter') this.doCreate();
+		});
+
+		setTimeout(() => this.titleInput.focus(), 50);
+	}
+
+	private async doCreate() {
+		const title = this.titleInput.value.trim();
+		if (!title) {
+			new Notice('请输入知识卡片名称');
+			this.titleInput.focus();
+			return;
+		}
+
+		// Sanitize filename
+		const safeName = title.replace(/[\/:*?"<>|]/g, '').trim() || '未命名';
+		const path = '20-Knowledge/' + safeName + '.md';
+
+		// Check if exists
+		if (this.app.vault.getAbstractFileByPath(path)) {
+			new Notice('⚠ 已存在同名笔记：' + safeName);
+			return;
+		}
+
+		// Build content
+		const tpl = TEMPLATES.find((t) => t.id === this.selectedId)!;
+		const now = new Date();
+		const dateStr = now.toISOString().slice(0, 10);
+		let content: string;
+
+		try {
+			const raw = await this.app.vault.adapter.read(tpl.templateFile!);
+			// Replace known variables, clear any unrecognized {{...}} placeholders
+			content = raw
+				.replace(/\{\{title\}\}/g, title)
+				.replace(/\{\{概念名\}\}/g, title)
+				.replace(/\{\{date\}\}/g, dateStr)
+				.replace(/\{\{.*?\}\}/g, '');
+		} catch {
+			new Notice('⚠ 读取模板文件失败');
+			return;
+		}
+
+		try {
+			await this.app.vault.create(path, content);
+			const file = this.app.vault.getAbstractFileByPath(path);
+			if (file instanceof TFile) {
+				this.app.workspace.getLeaf().openFile(file);
+			}
+			this.close();
+		} catch (e) {
+			new Notice('⚠ 创建笔记失败');
+			console.error('[Fox] Knowledge create error:', e);
+		}
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
 	}
 }

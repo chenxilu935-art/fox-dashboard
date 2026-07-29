@@ -230,6 +230,9 @@ var FoxDashboardView = class extends import_obsidian.ItemView {
     else
       this.app.workspace.openLinkText(path, "/", false);
   }
+  openKnowledgeCreator() {
+    new KnowledgeModal(this.app, this.plugin).open();
+  }
   toggleTheme() {
     this.plugin.settings.theme = this.plugin.settings.theme === "night" ? "day" : "night";
     this.plugin.saveSettings();
@@ -290,7 +293,7 @@ var FoxDashboardView = class extends import_obsidian.ItemView {
   createQuickNav() {
     const nav = createDiv({ cls: "fox-quick-nav" });
     const items = [
-      { icon: "\u63A2\u7D22\u8005\u7F57\u76D8.png", title: "\u77E5\u8BC6\u68EE\u6797", desc: "\u77E5\u8BC6\u5E93", path: "20-Notes/" },
+      { icon: "\u63A2\u7D22\u8005\u7F57\u76D8.png", title: "\u77E5\u8BC6\u68EE\u6797", desc: "\u77E5\u8BC6\u5E93", path: null, isKnowledge: true },
       { icon: "\u96EA\u5C71\u5C71\u5CF0.png", title: "\u5B66\u4E60\u4E13\u533A", desc: "\u82F1\u8BED/GRE/CFA", path: "30-Learning/" },
       { icon: "\u6C89\u7761\u72D0\u72F8.png", title: "\u65E5\u5FD7\u7CFB\u7EDF", desc: "\u65E5\u8BB0/\u590D\u76D8", path: "10-Daily/" },
       { icon: "\u72FC\u722A\u5370\u77F3\u7891.png", title: "\u5DE5\u4F5C\u7BA1\u7406", desc: "\u9879\u76EE/\u4EFB\u52A1", path: "40-Work/" },
@@ -303,6 +306,8 @@ var FoxDashboardView = class extends import_obsidian.ItemView {
         e.preventDefault();
         if (item.isDiary)
           this.openTodayDiary();
+        else if (item.isKnowledge)
+          this.openKnowledgeCreator();
         else if (item.path)
           this.openFolder(item.path);
       };
@@ -1546,6 +1551,98 @@ tags: [\u65E5\u5FD7]
   // ═══════════════════════════════════════════════
   escapeHtml(s) {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+};
+var TEMPLATES = [
+  { id: "concept", label: "\u{1F4D8} \u6982\u5FF5", templateFile: "\u6A21\u677F/\u6982\u5FF5\u7B14\u8BB0\u6A21\u677F.md", getContent: () => "" },
+  { id: "tutorial", label: "\u{1F4D7} \u6559\u7A0B", templateFile: "\u6A21\u677F/\u6559\u7A0B\u7B14\u8BB0\u6A21\u677F.md", getContent: () => "" },
+  { id: "methodology", label: "\u{1F4D9} \u65B9\u6CD5\u8BBA", templateFile: "\u6A21\u677F/\u65B9\u6CD5\u8BBA\u7B14\u8BB0\u6A21\u677F.md", getContent: () => "" },
+  { id: "tool", label: "\u{1F527} \u5DE5\u5177", templateFile: "\u6A21\u677F/\u5DE5\u5177\u7B14\u8BB0\u6A21\u677F.md", getContent: () => "" },
+  { id: "thinking", label: "\u{1F4A1} \u601D\u8003", templateFile: "\u6A21\u677F/\u601D\u8003\u7B14\u8BB0\u6A21\u677F.md", getContent: () => "" },
+  { id: "research-concept", label: "\u{1F52C} \u79D1\u7814\u6982\u5FF5\u7B14\u8BB0", templateFile: "\u6A21\u677F/\u79D1\u7814\u6982\u5FF5\u7B14\u8BB0\u6A21\u677F.md", getContent: () => "" },
+  { id: "lit-note", label: "\u{1F4C4} \u6587\u732E\u7B14\u8BB0", templateFile: "\u6A21\u677F/\u6587\u732E\u7B14\u8BB0\u6A21\u677F.md", getContent: () => "" }
+];
+var KnowledgeModal = class extends import_obsidian.Modal {
+  constructor(app, plugin) {
+    super(app);
+    this.plugin = plugin;
+    this.selectedId = "concept";
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.addClass("fox-knowledge-modal");
+    contentEl.empty();
+    contentEl.createEl("h2", { text: "\u{1F4DA} \u65B0\u5EFA\u77E5\u8BC6\u5361\u7247" });
+    this.titleInput = contentEl.createEl("input", {
+      type: "text",
+      attr: { placeholder: "\u77E5\u8BC6\u5361\u7247\u540D\u79F0\u2026", autofocus: "" }
+    });
+    this.titleInput.addClass("fox-knowledge-input");
+    const list = contentEl.createDiv({ cls: "fox-knowledge-tpl-list" });
+    for (const tpl of TEMPLATES) {
+      const btn = list.createEl("button", { cls: "fox-knowledge-tpl-btn", text: tpl.label });
+      if (tpl.id === this.selectedId)
+        btn.addClass("active");
+      btn.onclick = () => {
+        list.querySelectorAll(".fox-knowledge-tpl-btn").forEach((b) => b.removeClass("active"));
+        btn.addClass("active");
+        this.selectedId = tpl.id;
+      };
+    }
+    const btnRow = contentEl.createDiv({ cls: "fox-knowledge-actions" });
+    const cancelBtn = btnRow.createEl("button", { cls: "fox-record-btn", text: "\u53D6\u6D88" });
+    cancelBtn.onclick = () => this.close();
+    this.createBtn = btnRow.createEl("button", {
+      cls: "fox-record-btn",
+      text: "\u{1F331} \u521B\u5EFA",
+      attr: { style: "background: var(--fox-accent); color: #fff;" }
+    });
+    this.createBtn.onclick = () => this.doCreate();
+    this.titleInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter")
+        this.doCreate();
+    });
+    setTimeout(() => this.titleInput.focus(), 50);
+  }
+  async doCreate() {
+    const title = this.titleInput.value.trim();
+    if (!title) {
+      new import_obsidian.Notice("\u8BF7\u8F93\u5165\u77E5\u8BC6\u5361\u7247\u540D\u79F0");
+      this.titleInput.focus();
+      return;
+    }
+    const safeName = title.replace(/[\/:*?"<>|]/g, "").trim() || "\u672A\u547D\u540D";
+    const path = "20-Knowledge/" + safeName + ".md";
+    if (this.app.vault.getAbstractFileByPath(path)) {
+      new import_obsidian.Notice("\u26A0 \u5DF2\u5B58\u5728\u540C\u540D\u7B14\u8BB0\uFF1A" + safeName);
+      return;
+    }
+    const tpl = TEMPLATES.find((t) => t.id === this.selectedId);
+    const now = /* @__PURE__ */ new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    let content;
+    try {
+      const raw = await this.app.vault.adapter.read(tpl.templateFile);
+      content = raw.replace(/\{\{title\}\}/g, title).replace(/\{\{概念名\}\}/g, title).replace(/\{\{date\}\}/g, dateStr).replace(/\{\{.*?\}\}/g, "");
+    } catch {
+      new import_obsidian.Notice("\u26A0 \u8BFB\u53D6\u6A21\u677F\u6587\u4EF6\u5931\u8D25");
+      return;
+    }
+    try {
+      await this.app.vault.create(path, content);
+      const file = this.app.vault.getAbstractFileByPath(path);
+      if (file instanceof import_obsidian.TFile) {
+        this.app.workspace.getLeaf().openFile(file);
+      }
+      this.close();
+    } catch (e) {
+      new import_obsidian.Notice("\u26A0 \u521B\u5EFA\u7B14\u8BB0\u5931\u8D25");
+      console.error("[Fox] Knowledge create error:", e);
+    }
+  }
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
   }
 };
 

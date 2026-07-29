@@ -1878,3 +1878,83 @@
   .fox-nav-btn:hover { transform: none; }
   .fox-nav-btn:active { transform: translateY(-1px); }
 }
+
+/* ═══════════════════════════════════════════════
+   KNOWLEDGE MODAL
+   ═══════════════════════════════════════════════ */
+
+.fox-knowledge-modal {
+  min-width: 340px;
+}
+
+.fox-knowledge-modal h2 {
+  margin: 0 0 14px;
+  font-size: 1.1rem;
+  color: var(--fox-heading);
+}
+
+.fox-knowledge-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03) !important;
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--fox-card-border);
+  border-radius: var(--fox-radius-sm);
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  color: var(--fox-text);
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color 0.25s;
+}
+
+.fox-knowledge-input:focus {
+  border-color: var(--fox-accent);
+  box-shadow: 0 0 0 2px var(--fox-accent-soft);
+}
+
+.fox-knowledge-input::placeholder {
+  color: var(--fox-placeholder);
+}
+
+.fox-knowledge-tpl-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.fox-knowledge-tpl-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--fox-card-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  color: var(--fox-text);
+  cursor: pointer;
+  text-align: center;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.fox-knowledge-tpl-btn:hover {
+  background: var(--fox-accent-soft);
+  border-color: var(--fox-accent);
+}
+
+.fox-knowledge-tpl-btn.active {
+  background: var(--fox-accent-soft);
+  border-color: var(--fox-accent);
+  box-shadow: 0 0 0 1px var(--fox-accent);
+  color: var(--fox-accent);
+  font-weight: 600;
+}
+
+.fox-knowledge-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 0;
+}
