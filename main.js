@@ -39,16 +39,6 @@ var FoxDashboardView = class extends import_obsidian.ItemView {
     // ═══════════════════════════════════════════════
     this.currentMood = null;
     // ═══════════════════════════════════════════════
-    // HABITS
-    // ═══════════════════════════════════════════════
-    this.HABIT_DEFS = [
-      { id: "\u65E9\u8D77", label: "\u{1F305} \u65E9\u8D77 (7:30\u524D)" },
-      { id: "\u51A5\u60F3", label: "\u{1F9D8} \u51A5\u60F3" },
-      { id: "\u8FD0\u52A8", label: "\u{1F3C3} \u8FD0\u52A8" },
-      { id: "\u9605\u8BFB", label: "\u{1F4D6} \u9605\u8BFB" },
-      { id: "\u65E5\u8BB0", label: "\u{1F4DD} \u65E5\u8BB0" }
-    ];
-    // ═══════════════════════════════════════════════
     // HEATMAP
     // ═══════════════════════════════════════════════
     this.heatmapMode = "year";
@@ -295,7 +285,7 @@ var FoxDashboardView = class extends import_obsidian.ItemView {
     const items = [
       { icon: "\u63A2\u7D22\u8005\u7F57\u76D8.png", title: "\u77E5\u8BC6\u68EE\u6797", desc: "\u77E5\u8BC6\u5E93", path: null, isKnowledge: true },
       { icon: "\u96EA\u5C71\u5C71\u5CF0.png", title: "\u5B66\u4E60\u4E13\u533A", desc: "\u82F1\u8BED/GRE/CFA", path: "30-Learning/" },
-      { icon: "\u6C89\u7761\u72D0\u72F8.png", title: "\u65E5\u5FD7\u7CFB\u7EDF", desc: "\u65E5\u8BB0/\u590D\u76D8", path: "10-Daily/" },
+      { icon: "\u6C89\u7761\u72D0\u72F8.png", title: "\u65E5\u5FD7\u7CFB\u7EDF", desc: "\u65E5\u8BB0/\u590D\u76D8", isDiary: true },
       { icon: "\u72FC\u722A\u5370\u77F3\u7891.png", title: "\u5DE5\u4F5C\u7BA1\u7406", desc: "\u9879\u76EE/\u4EFB\u52A1", path: "40-Work/" },
       { icon: "\u751F\u547D\u4E4B\u6811\u5FBD\u7AE0.png", title: "\u76EE\u6807\u89C4\u5212", desc: "\u8BA1\u5212/\u613F\u666F", path: "50-Application/" },
       { icon: "\u5E73\u8861\u77F3\u5806.png", title: "\u5065\u5EB7\u751F\u6D3B", desc: "\u8FD0\u52A8/\u5FC3\u60C5", path: "" }
@@ -922,6 +912,12 @@ tags: [\u65E5\u5FD7]
         el.textContent = "";
       }, 2500);
     }
+  }
+  // ═══════════════════════════════════════════════
+  // HABITS
+  // ═══════════════════════════════════════════════
+  get HABIT_DEFS() {
+    return this.plugin.settings.habitDefs;
   }
   async loadHabits() {
     const listEl = this.contentEl.querySelector("#fox-habit-list");
@@ -1667,26 +1663,22 @@ var DEFAULT_SETTINGS = {
     { name: "\u{1F3AC} \u7535\u5F71\u6536\u85CF", path: "" },
     { name: "\u{1F4DD} \u957F\u671F\u9879\u76EE", path: "" },
     { name: "\u{1F331} \u6210\u957F\u8BB0\u5F55", path: "" }
+  ],
+  habitDefs: [
+    { id: "\u65E9\u8D77", label: "\u{1F305} \u65E9\u8D77 (7:30\u524D)" },
+    { id: "\u51A5\u60F3", label: "\u{1F9D8} \u51A5\u60F3" },
+    { id: "\u8FD0\u52A8", label: "\u{1F3C3} \u8FD0\u52A8" },
+    { id: "\u9605\u8BFB", label: "\u{1F4D6} \u9605\u8BFB" },
+    { id: "\u65E5\u8BB0", label: "\u{1F4DD} \u65E5\u8BB0" }
   ]
 };
 var FoxDashboardPlugin = class extends import_obsidian2.Plugin {
   async onload() {
     await this.loadSettings();
-    this.registerView(
-      VIEW_TYPE_FOX,
-      (leaf) => new FoxDashboardView(leaf, this)
-    );
-    this.addRibbonIcon("compass", "\u72D0\u306E\u5DE5\u4F5C\u53F0", () => {
-      this.openView();
-    });
-    this.addCommand({
-      id: "open-fox-dashboard",
-      name: "\u6253\u5F00\u72D0\u306E\u5DE5\u4F5C\u53F0",
-      callback: () => this.openView()
-    });
-    this.app.workspace.onLayoutReady(() => {
-      setTimeout(() => this.openView(), 200);
-    });
+    this.registerView(VIEW_TYPE_FOX, (leaf) => new FoxDashboardView(leaf, this));
+    this.addRibbonIcon("compass", "\u72D0\u306E\u5DE5\u4F5C\u53F0", () => this.openView());
+    this.addCommand({ id: "open-fox-dashboard", name: "\u6253\u5F00\u72D0\u306E\u5DE5\u4F5C\u53F0", callback: () => this.openView() });
+    this.app.workspace.onLayoutReady(() => setTimeout(() => this.openView(), 200));
     this.addSettingTab(new FoxDashboardSettingTab(this.app, this));
   }
   async onunload() {
@@ -1699,9 +1691,8 @@ var FoxDashboardPlugin = class extends import_obsidian2.Plugin {
     await this.saveData(this.settings);
     const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_FOX);
     for (const leaf of leaves) {
-      if (leaf.view instanceof FoxDashboardView) {
+      if (leaf.view instanceof FoxDashboardView)
         leaf.view.onSettingsChanged();
-      }
     }
   }
   async openView() {
@@ -1712,57 +1703,128 @@ var FoxDashboardPlugin = class extends import_obsidian2.Plugin {
     }
     const leaf = this.app.workspace.getLeaf("tab");
     if (leaf) {
-      await leaf.setViewState({
-        type: VIEW_TYPE_FOX,
-        active: true
-      });
+      await leaf.setViewState({ type: VIEW_TYPE_FOX, active: true });
       this.app.workspace.revealLeaf(leaf);
     }
   }
 };
+function FoxItemList(el, items, config) {
+  const listEl = el.createDiv();
+  function render() {
+    listEl.empty();
+    if (items.length === 0) {
+      listEl.createEl("p", { cls: "fox-sub-empty", text: config.emptyText || "\u6682\u65E0\u9879\u76EE" });
+    } else {
+      items.forEach((item, i) => {
+        const fields = config.renderRow(item, i);
+        const s = new import_obsidian2.Setting(listEl);
+        for (const f of fields) {
+          if (f.type === "text") {
+            s.addText((t) => t.setPlaceholder(f.placeholder).setValue(String(f.value)).onChange(f.onChange));
+          } else {
+            s.addText((t) => t.setPlaceholder(f.placeholder).setValue(String(f.value)).onChange((v) => f.onChange(v)));
+          }
+        }
+        s.addButton((b) => b.setIcon("trash").setWarning().onClick(async () => {
+          items.splice(i, 1);
+          await config.onSave();
+          render();
+        }));
+        s.settingEl.addClass("fox-setting-row");
+      });
+    }
+  }
+  render();
+  new import_obsidian2.Setting(el).addButton((b) => b.setButtonText(config.addBtnText || "\uFF0B \u6DFB\u52A0").setCta().onClick(async () => {
+    items.push(config.onAdd());
+    await config.onSave();
+    render();
+  }));
+}
 var FoxDashboardSettingTab = class extends import_obsidian2.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
   }
+  get p() {
+    return this.plugin;
+  }
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "\u72D0\u306E\u5DE5\u4F5C\u53F0\u8BBE\u7F6E" });
-    new import_obsidian2.Setting(containerEl).setName("\u5EA7\u53F3\u94ED\u5217\u8868").setDesc("\u6BCF\u884C\u4E00\u53E5\uFF0C\u968F\u673A\u8F6E\u6362\u5C55\u793A").addTextArea(
-      (text) => text.setPlaceholder("\u8F93\u5165\u5EA7\u53F3\u94ED\uFF0C\u6BCF\u884C\u4E00\u53E5").setValue(this.plugin.settings.mottoList.join("\n")).onChange(async (value) => {
-        this.plugin.settings.mottoList = value.split("\n").filter((l) => l.trim());
-        await this.plugin.saveSettings();
-      })
-    );
-    new import_obsidian2.Setting(containerEl).setName("\u5B66\u4E60\u8FDB\u5EA6\u9879").setDesc("\u683C\u5F0F\uFF1A\u540D\u79F0|\u5F53\u524D\u503C|\u6700\u5927\u503C\uFF0C\u6BCF\u884C\u4E00\u9879").addTextArea(
-      (text) => text.setPlaceholder("GRE \u5907\u8003|0|100\nPython \u6570\u636E\u5206\u6790|0|100").setValue(
-        this.plugin.settings.progressItems.map((p) => `${p.name}|${p.value}|${p.max}`).join("\n")
-      ).onChange(async (value) => {
-        this.plugin.settings.progressItems = value.split("\n").filter((l) => l.trim()).map((l) => {
-          const parts = l.split("|");
-          return {
-            name: parts[0] || "",
-            value: parseInt(parts[1]) || 0,
-            max: parseInt(parts[2]) || 100
-          };
-        });
-        await this.plugin.saveSettings();
-      })
-    );
-    new import_obsidian2.Setting(containerEl).setName("\u7B2C\u4E8C\u68EE\u6797\u5165\u53E3").setDesc("\u683C\u5F0F\uFF1A\u663E\u793A\u540D\u79F0|\u7B14\u8BB0/\u6587\u4EF6\u5939\u8DEF\u5F84\uFF0C\u6BCF\u884C\u4E00\u9879\u3002\u7559\u7A7A\u8DEF\u5F84\u5219\u4E0D\u8DF3\u8F6C\u3002").addTextArea(
-      (text) => text.setPlaceholder("\u{1F4DA} \u56FE\u4E66\u9986|20-Notes/\n\u{1F3AC} \u7535\u5F71\u6536\u85CF|").setValue(
-        this.plugin.settings.secondForest.map((s) => `${s.name}|${s.path}`).join("\n")
-      ).onChange(async (value) => {
-        this.plugin.settings.secondForest = value.split("\n").filter((l) => l.trim()).map((l) => {
-          const parts = l.split("|");
-          return {
-            name: parts[0] || "",
-            path: parts[1] || ""
-          };
-        });
-        await this.plugin.saveSettings();
-      })
-    );
+    containerEl.createEl("h2", { text: "\u{1F98A} \u72D0\u306E\u5DE5\u4F5C\u53F0\u8BBE\u7F6E" });
+    containerEl.createEl("h3", { text: "\u5EA7\u53F3\u94ED\u5217\u8868" });
+    FoxItemList(containerEl, this.p.settings.mottoList, {
+      emptyText: "\u6682\u65E0\u5EA7\u53F3\u94ED",
+      addBtnText: "\uFF0B \u6DFB\u52A0\u5EA7\u53F3\u94ED",
+      onAdd: () => "",
+      renderRow: (item, i) => [
+        { type: "text", placeholder: "\u8F93\u5165\u5EA7\u53F3\u94ED\u2026", value: item, onChange: (v) => {
+          this.p.settings.mottoList[i] = v;
+        } }
+      ],
+      onSave: async () => {
+        await this.p.saveSettings();
+      }
+    });
+    containerEl.createEl("h3", { text: "\u5B66\u4E60\u8FDB\u5EA6\u9879" });
+    FoxItemList(containerEl, this.p.settings.progressItems, {
+      emptyText: "\u6682\u65E0\u8FDB\u5EA6\u9879",
+      addBtnText: "\uFF0B \u6DFB\u52A0\u9879\u76EE",
+      onAdd: () => ({ name: "", value: 0, max: 100 }),
+      renderRow: (item, i) => [
+        { type: "text", placeholder: "\u540D\u79F0\uFF08\u5982 GRE \u5907\u8003\uFF09", value: item.name, onChange: (v) => {
+          item.name = v;
+        } },
+        { type: "number", placeholder: "\u5F53\u524D", value: item.value, onChange: (v) => {
+          item.value = parseInt(v) || 0;
+        } },
+        { type: "number", placeholder: "\u76EE\u6807", value: item.max, onChange: (v) => {
+          item.max = parseInt(v) || 100;
+        } }
+      ],
+      onSave: async () => {
+        await this.p.saveSettings();
+      }
+    });
+    containerEl.createEl("h3", { text: "\u7B2C\u4E8C\u68EE\u6797\u5165\u53E3" });
+    FoxItemList(containerEl, this.p.settings.secondForest, {
+      emptyText: "\u6682\u65E0\u5165\u53E3",
+      addBtnText: "\uFF0B \u6DFB\u52A0\u5165\u53E3",
+      onAdd: () => ({ name: "", path: "" }),
+      renderRow: (item, i) => [
+        { type: "text", placeholder: "\u663E\u793A\u540D\u79F0", value: item.name, onChange: (v) => {
+          item.name = v;
+        } },
+        { type: "text", placeholder: "\u7B14\u8BB0/\u6587\u4EF6\u5939\u8DEF\u5F84", value: item.path, onChange: (v) => {
+          item.path = v;
+        } }
+      ],
+      onSave: async () => {
+        await this.p.saveSettings();
+      }
+    });
+    containerEl.createEl("h3", { text: "\u5065\u5EB7\u4E60\u60EF" });
+    FoxItemList(containerEl, this.p.settings.habitDefs, {
+      emptyText: "\u6682\u65E0\u4E60\u60EF",
+      addBtnText: "\uFF0B \u6DFB\u52A0\u4E60\u60EF",
+      onAdd: () => ({ id: "", label: "" }),
+      renderRow: (item, i) => [
+        { type: "text", placeholder: "id\uFF08\u5982 \u65E9\u8D77\uFF09", value: item.id, onChange: (v) => {
+          item.id = v;
+        } },
+        { type: "text", placeholder: "\u663E\u793A\u6587\u5B57\uFF08\u5982 \u{1F305} \u65E9\u8D77\uFF09", value: item.label, onChange: (v) => {
+          item.label = v;
+        } }
+      ],
+      onSave: async () => {
+        await this.p.saveSettings();
+      }
+    });
+    containerEl.createEl("hr");
+    new import_obsidian2.Setting(containerEl).addButton((b) => b.setButtonText("\u{1F4BE} \u4FDD\u5B58\u8BBE\u7F6E").setCta().onClick(async () => {
+      await this.p.saveSettings();
+      new Notice("\u2705 \u8BBE\u7F6E\u5DF2\u4FDD\u5B58");
+    }));
   }
 };

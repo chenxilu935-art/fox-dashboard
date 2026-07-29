@@ -292,7 +292,7 @@ export class FoxDashboardView extends ItemView {
 		const items = [
 			{ icon: '探索者罗盘.png', title: '知识森林', desc: '知识库', path: null, isKnowledge: true },
 			{ icon: '雪山山峰.png', title: '学习专区', desc: '英语/GRE/CFA', path: '30-Learning/' },
-			{ icon: '沉睡狐狸.png', title: '日志系统', desc: '日记/复盘', path: '10-Daily/' },
+			{ icon: '沉睡狐狸.png', title: '日志系统', desc: '日记/复盘', isDiary: true },
 			{ icon: '狼爪印石碑.png', title: '工作管理', desc: '项目/任务', path: '40-Work/' },
 			{ icon: '生命之树徽章.png', title: '目标规划', desc: '计划/愿景', path: '50-Application/' },
 			{ icon: '平衡石堆.png', title: '健康生活', desc: '运动/心情', path: '' },
@@ -977,13 +977,9 @@ export class FoxDashboardView extends ItemView {
 	// HABITS
 	// ═══════════════════════════════════════════════
 
-	private readonly HABIT_DEFS = [
-		{ id: '早起', label: '🌅 早起 (7:30前)' },
-		{ id: '冥想', label: '🧘 冥想' },
-		{ id: '运动', label: '🏃 运动' },
-		{ id: '阅读', label: '📖 阅读' },
-		{ id: '日记', label: '📝 日记' },
-	];
+	private get HABIT_DEFS() {
+		return this.plugin.settings.habitDefs;
+	}
 
 	private async loadHabits() {
 		const listEl = this.contentEl.querySelector('#fox-habit-list');
