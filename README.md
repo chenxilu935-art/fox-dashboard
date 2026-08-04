@@ -8,6 +8,17 @@
 
 ---
 
+## 预览
+
+<img width="1048" height="655" alt="image" src="https://github.com/user-attachments/assets/d5321862-2c2d-4ec6-8cc4-e062f38cdf01" />
+<img width="1048" height="657" alt="image" src="https://github.com/user-attachments/assets/c3860dd8-4173-4122-9d08-29707bc09625" />
+<img width="1079" height="655" alt="image" src="https://github.com/user-attachments/assets/bdaf5094-05ce-4d06-a644-103c30e29764" />
+<img width="1046" height="656" alt="image" src="https://github.com/user-attachments/assets/9b49fa4a-0503-4d23-8d07-2e60e8248201" />
+<img width="825" height="583" alt="image" src="https://github.com/user-attachments/assets/5b815ceb-7f08-4798-84f3-6c620f2efe5f" />
+<img width="1647" height="1165" alt="image" src="https://github.com/user-attachments/assets/796271e1-4df0-4771-9c0d-f815e07120af" />
+
+---
+
 ## ✨ 功能
 
 | 模块 | 说明 |
