@@ -401,7 +401,10 @@ var FoxDashboardView = class extends import_obsidian.ItemView {
   dateStr(offset) {
     const d = /* @__PURE__ */ new Date();
     d.setDate(d.getDate() + offset);
-    return d.toISOString().slice(0, 10);
+    return this.localDateStr(d);
+  }
+  localDateStr(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
   async loadTasks() {
     const listEl = this.contentEl.querySelector("#fox-task-list");
@@ -424,7 +427,6 @@ var FoxDashboardView = class extends import_obsidian.ItemView {
           const badge = t.source === "yesterday" ? '<span class="fox-task-badge">\u6628\u5929</span>' : "";
           return `<div class="fox-task-item" data-index="${i}">\u2610 ${badge}${this.escapeHtml(t.text)}</div>`;
         }).join("");
-        const done = tasks.filter((t) => false).length;
         if (summaryEl)
           summaryEl.textContent = `${tasks.length} \u4E2A\u672A\u5B8C\u6210`;
         listEl.querySelectorAll(".fox-task-item").forEach((el) => {
@@ -876,8 +878,8 @@ tags: [\u65E5\u5FD7]
     }
     if (note) {
       let hasNote = false;
-      for (let i = 0; i < lines.length; i++) {
-        if (fmCount === 1 && /^mood_note:\s*/i.test(lines[i])) {
+      for (let i = 0; i < fmEnd; i++) {
+        if (/^mood_note:\s*/i.test(lines[i])) {
           lines[i] = `mood_note: ${note}`;
           hasNote = true;
           break;
@@ -1134,61 +1136,21 @@ tags: [\u65E5\u5FD7]
     const listEl = this.contentEl.querySelector("#fox-finance-list");
     if (!summaryEl || !listEl || !accEl)
       return;
-    const allTxs = [];
-    const balances = {};
+    const ff = this.app.plugins?.plugins?.["fox-finance"];
+    if (!ff?.dataLayer) {
+      summaryEl.innerHTML = '<div class="fox-task-empty">\u26A0 \u672A\u5B89\u88C5\u6216\u672A\u542F\u7528 fox-finance \u63D2\u4EF6</div>';
+      accEl.empty();
+      listEl.innerHTML = "";
+      return;
+    }
+    let monthTxs = [];
+    let balances = {};
     try {
-      const ledgerDir = "Finance/Ledger";
-      const exists = await this.app.vault.adapter.exists(ledgerDir);
-      if (exists) {
-        const { files } = await this.app.vault.adapter.list(ledgerDir);
-        for (const file of files.filter((f) => f.endsWith(".md")).sort()) {
-          const content = await this.app.vault.adapter.read(file);
-          const lines = content.split("\n").filter((l) => l.startsWith("| ") && !l.startsWith("| date") && !l.startsWith("|---"));
-          for (const line of lines) {
-            const cols = line.split("|").map((c) => c.trim()).filter(Boolean);
-            if (cols.length < 7)
-              continue;
-            const tx = {
-              date: cols[0],
-              type: cols[1],
-              amount: parseFloat(cols[2]) || 0,
-              account: cols[3],
-              toAccount: cols[4] === "-" ? "" : cols[4],
-              category: cols[5] || "",
-              subcategory: cols[6] || "",
-              note: cols[7] || ""
-            };
-            allTxs.push(tx);
-            switch (tx.type) {
-              case "income":
-              case "refund":
-                balances[tx.account] = (balances[tx.account] || 0) + tx.amount;
-                break;
-              case "expense":
-                balances[tx.account] = (balances[tx.account] || 0) - tx.amount;
-                break;
-              case "transfer":
-              case "investment_in":
-                balances[tx.account] = (balances[tx.account] || 0) - tx.amount;
-                if (tx.toAccount)
-                  balances[tx.toAccount] = (balances[tx.toAccount] || 0) + tx.amount;
-                break;
-              case "investment_return":
-                if (tx.toAccount)
-                  balances[tx.toAccount] = (balances[tx.toAccount] || 0) + tx.amount;
-                break;
-              case "balance_adjust":
-                balances[tx.account] = tx.amount;
-                break;
-            }
-          }
-        }
-      }
+      const now = /* @__PURE__ */ new Date();
+      monthTxs = await ff.dataLayer.readLedger(now.getFullYear(), now.getMonth() + 1);
+      balances = await ff.dataLayer.calcAccountBalances();
     } catch (_) {
     }
-    const now = /* @__PURE__ */ new Date();
-    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const monthTxs = allTxs.filter((t) => t.date.startsWith(thisMonth));
     const income = monthTxs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
     const expense = monthTxs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
     const net = income - expense;
@@ -1337,7 +1299,7 @@ tags: [\u65E5\u5FD7]
       let streak = 0;
       const cursor = new Date(today);
       for (let i = 0; i < 365; i++) {
-        const ds = cursor.toISOString().slice(0, 10);
+        const ds = this.localDateStr(cursor);
         if (dateSet.has(ds)) {
           streak++;
           cursor.setDate(cursor.getDate() - 1);
@@ -1347,7 +1309,7 @@ tags: [\u65E5\u5FD7]
       this.setText("fox-stat-diaries", `${total} \u7BC7`);
       this.setText("fox-stat-streak", `${streak} \u5929`);
       this.setText("fox-stat-monthly", `${monthly.length} \u5929`);
-      const todayStr = today.toISOString().slice(0, 10);
+      const todayStr = this.localDateStr(today);
       const todayFile = files.find((f) => f.basename === todayStr);
       if (todayFile) {
         const content = await this.app.vault.read(todayFile);
@@ -1409,7 +1371,7 @@ tags: [\u65E5\u5FD7]
       const dateCount = /* @__PURE__ */ new Map();
       for (const f of allFiles) {
         const d = new Date(f.stat.mtime);
-        const key = d.toISOString().slice(0, 10);
+        const key = this.localDateStr(d);
         dateCount.set(key, (dateCount.get(key) || 0) + 1);
       }
       if (dateCount.size === 0) {
@@ -1447,7 +1409,7 @@ tags: [\u65E5\u5FD7]
         for (let i = 0; i < totalDays; i++) {
           const d = new Date(oneYearAgo);
           d.setDate(d.getDate() + i);
-          const ds = d.toISOString().slice(0, 10);
+          const ds = this.localDateStr(d);
           const count = dateCount.get(ds) || 0;
           const dow = d.getDay();
           const dayOfYear = Math.floor((d.getTime() - oneYearAgo.getTime()) / 864e5);
@@ -1493,7 +1455,7 @@ tags: [\u65E5\u5FD7]
         }
         for (let d = 1; d <= daysInMonth; d++) {
           const date = new Date(year, month, d);
-          const ds = date.toISOString().slice(0, 10);
+          const ds = this.localDateStr(date);
           const count = dateCount.get(ds) || 0;
           const dow = date.getDay();
           const dayIndex = startDow + d - 1;
@@ -1517,7 +1479,7 @@ tags: [\u65E5\u5FD7]
         for (let c = 0; c < 7; c++) {
           const d = new Date(startOfWeek);
           d.setDate(startOfWeek.getDate() + c);
-          const ds = d.toISOString().slice(0, 10);
+          const ds = this.localDateStr(d);
           const count = dateCount.get(ds) || 0;
           const x = c * step + 10;
           svg += `<rect x="${x}" y="14" width="${cellSize}" height="${cellSize}" rx="3" fill="${fillColor(count)}" stroke="${hmStroke}" stroke-width="0.5" data-date="${ds}"><title>${ds} \xB7 ${count > 0 ? count + " \u7BC7\u65E5\u8BB0" : "\u65E0\u8BB0\u5F55"}</title></rect>`;
@@ -1615,7 +1577,7 @@ var KnowledgeModal = class extends import_obsidian.Modal {
     }
     const tpl = TEMPLATES.find((t) => t.id === this.selectedId);
     const now = /* @__PURE__ */ new Date();
-    const dateStr = now.toISOString().slice(0, 10);
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     let content;
     try {
       const raw = await this.app.vault.adapter.read(tpl.templateFile);
@@ -1645,8 +1607,6 @@ var KnowledgeModal = class extends import_obsidian.Modal {
 // main.ts
 var DEFAULT_SETTINGS = {
   theme: "day",
-  bgDayIndex: 0,
-  bgNightIndex: 0,
   mottoList: [
     "\u771F\u6B63\u7684\u81EA\u7531\uFF0C\u662F\u8D70\u81EA\u5DF1\u7684\u8DEF\uFF0C\u5E76\u628A\u5B83\u505A\u5230\u6781\u81F4\u3002",
     "\u6DF1\u5EA6\u601D\u8003\uFF0C\u523B\u610F\u7EC3\u4E60\u3002",
@@ -1719,11 +1679,7 @@ function FoxItemList(el, items, config) {
         const fields = config.renderRow(item, i);
         const s = new import_obsidian2.Setting(listEl);
         for (const f of fields) {
-          if (f.type === "text") {
-            s.addText((t) => t.setPlaceholder(f.placeholder).setValue(String(f.value)).onChange(f.onChange));
-          } else {
-            s.addText((t) => t.setPlaceholder(f.placeholder).setValue(String(f.value)).onChange((v) => f.onChange(v)));
-          }
+          s.addText((t) => t.setPlaceholder(f.placeholder).setValue(String(f.value)).onChange((v) => f.onChange(v)));
         }
         s.addButton((b) => b.setIcon("trash").setWarning().onClick(async () => {
           items.splice(i, 1);

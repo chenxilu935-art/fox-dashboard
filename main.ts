@@ -3,8 +3,6 @@ import { FoxDashboardView, VIEW_TYPE_FOX } from './view';
 
 interface FoxDashboardSettings {
 	theme: 'day' | 'night';
-	bgDayIndex: number;
-	bgNightIndex: number;
 	mottoList: string[];
 	countdowns: { name: string; date: string }[];
 	progressItems: { name: string; value: number; max: number }[];
@@ -14,8 +12,6 @@ interface FoxDashboardSettings {
 
 const DEFAULT_SETTINGS: FoxDashboardSettings = {
 	theme: 'day',
-	bgDayIndex: 0,
-	bgNightIndex: 0,
 	mottoList: [
 		'真正的自由，是走自己的路，并把它做到极致。',
 		'深度思考，刻意练习。',
@@ -121,11 +117,7 @@ function FoxItemList<T>(el: HTMLElement, items: T[], config: FoxItemListConfig<T
 				const s = new Setting(listEl);
 
 				for (const f of fields) {
-					if (f.type === 'text') {
-						s.addText(t => t.setPlaceholder(f.placeholder).setValue(String(f.value)).onChange(f.onChange));
-					} else {
-						s.addText(t => t.setPlaceholder(f.placeholder).setValue(String(f.value)).onChange(v => f.onChange(v)));
-					}
+					s.addText(t => t.setPlaceholder(f.placeholder).setValue(String(f.value)).onChange(v => f.onChange(v)));
 				}
 
 				s.addButton(b => b.setIcon('trash').setWarning().onClick(async () => {

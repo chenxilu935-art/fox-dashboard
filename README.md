@@ -4,7 +4,7 @@
 
 ![day](https://img.shields.io/badge/theme-forest%20explorer-%23789B58)
 ![night](https://img.shields.io/badge/theme-lone%20wolf-%239AB7FF)
-![version](https://img.shields.io/badge/version-0.1.0-blue)
+![version](https://img.shields.io/badge/version-0.5.1-blue)
 
 ---
 
@@ -83,9 +83,7 @@ fox-dashboard/
 ├── esbuild.config.mjs     # 构建配置
 ├── tsconfig.json          # TypeScript 配置
 ├── package.json           # 依赖与脚本
-└── 开发文档/
-    ├── 日志/               # 开发日志与待办
-    └── 规范/               # 需求/技术/设计文档
+└── 项目文档 → `99-Project/FoxDashboard/`（docs/ + devlog/ + claudian-memory.md，2026-07-25 起迁移）
 ```
 
 ---

@@ -425,7 +425,11 @@ export class FoxDashboardView extends ItemView {
 	private dateStr(offset: number): string {
 		const d = new Date();
 		d.setDate(d.getDate() + offset);
-		return d.toISOString().slice(0, 10);
+		return this.localDateStr(d);
+	}
+
+	private localDateStr(d: Date): string {
+		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 	}
 
 	private async loadTasks() {
@@ -455,7 +459,6 @@ export class FoxDashboardView extends ItemView {
 					return `<div class="fox-task-item" data-index="${i}">☐ ${badge}${this.escapeHtml(t.text)}</div>`;
 				}).join('');
 
-				const done = tasks.filter(t => false).length; // all shown are undone
 				if (summaryEl) summaryEl.textContent = `${tasks.length} 个未完成`;
 
 				// Click handler
@@ -938,8 +941,8 @@ export class FoxDashboardView extends ItemView {
 		// Also update or add mood note if provided
 		if (note) {
 			let hasNote = false;
-			for (let i = 0; i < lines.length; i++) {
-				if (fmCount === 1 && /^mood_note:\s*/i.test(lines[i])) {
+			for (let i = 0; i < fmEnd; i++) {
+				if (/^mood_note:\s*/i.test(lines[i])) {
 					lines[i] = `mood_note: ${note}`;
 					hasNote = true;
 					break;
@@ -1221,51 +1224,22 @@ export class FoxDashboardView extends ItemView {
 		const listEl = this.contentEl.querySelector('#fox-finance-list') as HTMLElement;
 		if (!summaryEl || !listEl || !accEl) return;
 
-		// 扫描所有账本文件，提取交易 + 推算余额
-		const allTxs: any[] = [];
-		const balances: Record<string, number> = {};
+		// 统一数据层：运行时委托 fox-finance 插件实例（不跨插件 import，避免解析逻辑分叉）
+		const ff = (this.app as any).plugins?.plugins?.['fox-finance'];
+		if (!ff?.dataLayer) {
+			summaryEl.innerHTML = '<div class="fox-task-empty">⚠ 未安装或未启用 fox-finance 插件</div>';
+			accEl.empty();
+			listEl.innerHTML = '';
+			return;
+		}
 
+		let monthTxs: any[] = [];
+		let balances: Record<string, number> = {};
 		try {
-			const ledgerDir = 'Finance/Ledger';
-			const exists = await this.app.vault.adapter.exists(ledgerDir);
-			if (exists) {
-				const { files } = await this.app.vault.adapter.list(ledgerDir);
-				for (const file of files.filter((f: string) => f.endsWith('.md')).sort()) {
-					const content = await this.app.vault.adapter.read(file);
-					const lines = content.split('\n').filter((l: string) => l.startsWith('| ') && !l.startsWith('| date') && !l.startsWith('|---'));
-					for (const line of lines) {
-						const cols = line.split('|').map((c: string) => c.trim()).filter(Boolean);
-						if (cols.length < 7) continue;
-						const tx = {
-							date: cols[0], type: cols[1], amount: parseFloat(cols[2]) || 0,
-							account: cols[3], toAccount: cols[4] === '-' ? '' : cols[4],
-							category: cols[5] || '', subcategory: cols[6] || '', note: cols[7] || '',
-						};
-						allTxs.push(tx);
-						// 余额推算
-						switch (tx.type) {
-							case 'income': case 'refund':
-								balances[tx.account] = (balances[tx.account] || 0) + tx.amount; break;
-							case 'expense':
-								balances[tx.account] = (balances[tx.account] || 0) - tx.amount; break;
-							case 'transfer': case 'investment_in':
-								balances[tx.account] = (balances[tx.account] || 0) - tx.amount;
-								if (tx.toAccount) balances[tx.toAccount] = (balances[tx.toAccount] || 0) + tx.amount;
-								break;
-							case 'investment_return':
-								if (tx.toAccount) balances[tx.toAccount] = (balances[tx.toAccount] || 0) + tx.amount;
-								break;
-							case 'balance_adjust':
-								balances[tx.account] = tx.amount; break;
-						}
-					}
-				}
-			}
-		} catch (_) { /* 目录尚未创建 */ }
-
-		const now = new Date();
-		const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-		const monthTxs = allTxs.filter((t: any) => t.date.startsWith(thisMonth));
+			const now = new Date();
+			monthTxs = await ff.dataLayer.readLedger(now.getFullYear(), now.getMonth() + 1);
+			balances = await ff.dataLayer.calcAccountBalances();
+		} catch (_) { /* 数据层暂时不可用，按空数据处理 */ }
 
 		const income = monthTxs.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + t.amount, 0);
 		const expense = monthTxs.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + t.amount, 0);
@@ -1449,7 +1423,7 @@ export class FoxDashboardView extends ItemView {
 			let streak = 0;
 			const cursor = new Date(today);
 			for (let i = 0; i < 365; i++) {
-				const ds = cursor.toISOString().slice(0, 10);
+				const ds = this.localDateStr(cursor);
 				if (dateSet.has(ds)) { streak++; cursor.setDate(cursor.getDate() - 1); }
 				else break;
 			}
@@ -1458,7 +1432,7 @@ export class FoxDashboardView extends ItemView {
 			this.setText('fox-stat-streak', `${streak} 天`);
 			this.setText('fox-stat-monthly', `${monthly.length} 天`);
 
-			const todayStr = today.toISOString().slice(0, 10);
+			const todayStr = this.localDateStr(today);
 			const todayFile = files.find(f => f.basename === todayStr);
 			if (todayFile) {
 				const content = await this.app.vault.read(todayFile);
@@ -1545,7 +1519,7 @@ export class FoxDashboardView extends ItemView {
 			const dateCount = new Map<string, number>();
 			for (const f of allFiles) {
 				const d = new Date(f.stat.mtime);
-				const key = d.toISOString().slice(0, 10);
+				const key = this.localDateStr(d);
 				dateCount.set(key, (dateCount.get(key) || 0) + 1);
 			}
 
@@ -1595,7 +1569,7 @@ export class FoxDashboardView extends ItemView {
 				for (let i = 0; i < totalDays; i++) {
 					const d = new Date(oneYearAgo);
 					d.setDate(d.getDate() + i);
-					const ds = d.toISOString().slice(0, 10);
+					const ds = this.localDateStr(d);
 					const count = dateCount.get(ds) || 0;
 					const dow = d.getDay();
 					const dayOfYear = Math.floor((d.getTime() - oneYearAgo.getTime()) / 86400000);
@@ -1646,7 +1620,7 @@ export class FoxDashboardView extends ItemView {
 				}
 				for (let d = 1; d <= daysInMonth; d++) {
 					const date = new Date(year, month, d);
-					const ds = date.toISOString().slice(0, 10);
+					const ds = this.localDateStr(date);
 					const count = dateCount.get(ds) || 0;
 					const dow = date.getDay();
 					const dayIndex = startDow + d - 1;
@@ -1673,7 +1647,7 @@ export class FoxDashboardView extends ItemView {
 				for (let c = 0; c < 7; c++) {
 					const d = new Date(startOfWeek);
 					d.setDate(startOfWeek.getDate() + c);
-					const ds = d.toISOString().slice(0, 10);
+					const ds = this.localDateStr(d);
 					const count = dateCount.get(ds) || 0;
 					const x = c * step + 10;
 					svg += `<rect x="${x}" y="14" width="${cellSize}" height="${cellSize}" rx="3" fill="${fillColor(count)}" stroke="${hmStroke}" stroke-width="0.5" data-date="${ds}"><title>${ds} · ${count > 0 ? count + ' 篇日记' : '无记录'}</title></rect>`;
@@ -1813,7 +1787,7 @@ class KnowledgeModal extends Modal {
 		// Build content
 		const tpl = TEMPLATES.find((t) => t.id === this.selectedId)!;
 		const now = new Date();
-		const dateStr = now.toISOString().slice(0, 10);
+		const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 		let content: string;
 
 		try {
